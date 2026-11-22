@@ -2,6 +2,8 @@ import React, { useCallback, useState } from 'react';
 import { Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, Text, TouchableOpacity, Vibration, View } from 'react-native';
 import { colores } from '../config/theme';
 import { obtenerProducto, mensajeDeError } from '../services/productosService';
+import { registrarVenta } from '../services/ventasService';
+import { obtenerEstado } from '../services/sincronizacion';
 import { useAviso } from '../hooks/useAviso';
 import { confirmar } from '../utils/dialogos';
 import { formatearMonto, parsearMonto } from '../utils/dinero';
@@ -14,6 +16,7 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
   const { items, totalCentavos, totalArticulos, agregar, incrementar, decrementar, limpiar } = cuenta;
   const { aviso, mostrar } = useAviso();
   const [pagaCon, setPagaCon] = useState('');
+  const [cobrando, setCobrando] = useState(false);
 
   // Se ejecuta por cada código leído. El escáner espera a que termine antes de aceptar otro.
   const manejarCodigo = useCallback(
@@ -28,7 +31,9 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
           Vibration.vibrate([0, 80, 60, 80]);
           const registrar = await confirmar(
             'Producto no encontrado',
-            `El código ${codigo} no está registrado.\n\n¿Quieres registrarlo?`,
+            `El código ${codigo} no está registrado.` +
+              (obtenerEstado().enLinea ? '' : '\n\n📴 Sin conexión: se guardará en el celular y se enviará después.') +
+              '\n\n¿Quieres registrarlo?',
             { si: 'Registrar' }
           );
           if (registrar) onRegistrarCodigo(codigo);
@@ -46,17 +51,29 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
   const alcanza = efectivoCentavos !== null && efectivoCentavos >= totalCentavos;
   const cambioCentavos = alcanza ? efectivoCentavos - totalCentavos : 0;
 
-  const finalizarPago = () => {
+  const finalizarPago = async () => {
+    if (cobrando) return;
     if (!alcanza) {
       Alert.alert('Monto insuficiente', 'El dinero recibido es menor al total a pagar.');
+      return;
+    }
+    setCobrando(true);
+    try {
+      // Se guarda en el celular al instante; se envía a Firebase cuando hay internet
+      await registrarVenta({ items, totalCentavos, recibidoCentavos: efectivoCentavos, cambioCentavos });
+    } catch {
+      setCobrando(false);
+      Alert.alert('Error', 'No se pudo guardar la venta en el celular. Intenta de nuevo.');
       return;
     }
     const resumen =
       `Total cobrado: ${formatearMonto(totalCentavos)}\n` +
       `Efectivo recibido: ${formatearMonto(efectivoCentavos)}\n` +
-      `Cambio devuelto: ${formatearMonto(cambioCentavos)}`;
+      `Cambio devuelto: ${formatearMonto(cambioCentavos)}` +
+      (obtenerEstado().enLinea ? '' : '\n\n📴 Guardada en el celular; se enviará al volver el internet.');
     limpiar();
     setPagaCon('');
+    setCobrando(false);
     Alert.alert('¡Venta exitosa!', resumen);
   };
 
