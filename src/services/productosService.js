@@ -1,68 +1,40 @@
-import { ref, get, set } from 'firebase/database';
+import { ref, get } from 'firebase/database';
 import { db } from '../config/firebase';
 import { pesosACentavos } from '../utils/dinero';
+import { ErrorRed, conTiempoLimite, mensajeDeError } from '../utils/red';
+import * as catalogo from './catalogoLocal';
+import * as cola from './colaSincronizacion';
+import { obtenerEstado, sincronizar } from './sincronizacion';
 
-const TIEMPO_ESPERA_MS = 8000; // sin internet, Firebase puede quedarse esperando para siempre
-const VIDA_CACHE_MS = 5 * 60 * 1000;
+export { mensajeDeError };
 
-// Caché en memoria: un producto ya escaneado no vuelve a consultarse a Firebase
-const cache = new Map();
+/**
+ * Busca un producto. Primero en el catálogo del celular (instantáneo, sin internet).
+ * Si no está y hay conexión, pregunta a Firebase por si otro celular lo registró hace poco.
+ * Devuelve null si no existe.
+ */
+export async function obtenerProducto(codigo, { soloLocal = false } = {}) {
+  const local = catalogo.buscar(codigo);
+  if (local || soloLocal || !obtenerEstado().enLinea) return local;
 
-class ErrorProductos extends Error {
-  constructor(tipo, mensaje) {
-    super(mensaje);
-    this.tipo = tipo;
-  }
-}
-
-// Firebase no acepta . # $ [ ] / en las claves
-const claveProducto = (codigo) => String(codigo).trim().replace(/[.#$[\]/]/g, '_');
-
-function conTiempoLimite(promesa) {
-  let temporizador;
-  const limite = new Promise((_, rechazar) => {
-    temporizador = setTimeout(
-      () => rechazar(new ErrorProductos('timeout', 'Sin conexión o conexión muy lenta.')),
-      TIEMPO_ESPERA_MS
-    );
-  });
-  return Promise.race([promesa, limite]).finally(() => clearTimeout(temporizador));
-}
-
-export function mensajeDeError(error) {
-  if (error instanceof ErrorProductos) return error.message;
-  return 'Ocurrió un problema con la base de datos.';
-}
-
-/** Busca un producto por código. Devuelve null si no existe. */
-export async function obtenerProducto(codigo, { forzar = false } = {}) {
-  const clave = claveProducto(codigo);
-
-  const enCache = cache.get(clave);
-  if (!forzar && enCache && Date.now() - enCache.guardadoEn < VIDA_CACHE_MS) {
-    return enCache.producto;
-  }
-
-  const snapshot = await conTiempoLimite(get(ref(db, `productos/${clave}`)));
+  const clave = catalogo.claveProducto(codigo);
+  const snapshot = await conTiempoLimite(get(ref(db, `productos/${clave}`)), 5000);
   if (!snapshot.exists()) return null;
 
   const datos = snapshot.val();
   const precioCentavos = pesosACentavos(datos.precio);
   if (!datos.nombre || Number.isNaN(precioCentavos)) {
-    throw new ErrorProductos('datos', `El producto ${codigo} tiene datos incompletos en la base de datos.`);
+    throw new ErrorRed('datos', `El producto ${codigo} tiene datos incompletos en la base de datos.`);
   }
-
-  const producto = { codigo: String(codigo).trim(), nombre: datos.nombre, precioCentavos };
-  cache.set(clave, { producto, guardadoEn: Date.now() });
+  const producto = { codigo: clave, nombre: datos.nombre, precioCentavos };
+  catalogo.guardar(producto);
   return producto;
 }
 
-/** Crea o actualiza un producto. */
+/** Guarda en el celular al instante y lo envía a Firebase en cuanto haya internet. */
 export async function guardarProducto({ codigo, nombre, precioCentavos }) {
-  const clave = claveProducto(codigo);
-  await conTiempoLimite(set(ref(db, `productos/${clave}`), { nombre, precio: precioCentavos / 100 }));
-  cache.set(clave, {
-    producto: { codigo: String(codigo).trim(), nombre, precioCentavos },
-    guardadoEn: Date.now(),
-  });
+  const producto = { codigo: catalogo.claveProducto(codigo), nombre, precioCentavos };
+  await cola.encolar('producto', producto); // primero a la cola (disco): es lo que no se puede perder
+  catalogo.guardar(producto);
+  sincronizar();
 }

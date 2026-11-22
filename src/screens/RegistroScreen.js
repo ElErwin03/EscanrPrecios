@@ -5,6 +5,7 @@ import { guardarProducto, obtenerProducto, mensajeDeError } from '../services/pr
 import { useAviso } from '../hooks/useAviso';
 import { confirmar } from '../utils/dialogos';
 import { formatearMonto, parsearMonto } from '../utils/dinero';
+import { obtenerEstado } from '../services/sincronizacion';
 import EscanerCodigo from '../components/EscanerCodigo';
 import Aviso from '../components/Aviso';
 
@@ -45,7 +46,7 @@ export default function RegistroScreen({ codigoInicial = '' }) {
     setGuardando(true);
     try {
       // Evita sobrescribir sin querer un producto que ya existe
-      const existente = await obtenerProducto(codigoLimpio, { forzar: true });
+      const existente = await obtenerProducto(codigoLimpio, { soloLocal: true });
       if (existente) {
         const actualizar = await confirmar(
           'Producto ya registrado',
@@ -56,7 +57,11 @@ export default function RegistroScreen({ codigoInicial = '' }) {
       }
 
       await guardarProducto({ codigo: codigoLimpio, nombre: nombreLimpio, precioCentavos });
-      mostrar('Producto guardado correctamente');
+      mostrar(
+        obtenerEstado().enLinea
+          ? 'Producto guardado correctamente'
+          : 'Guardado en el celular. Se enviará cuando haya internet.'
+      );
       setCodigo('');
       setNombre('');
       setPrecio('');
