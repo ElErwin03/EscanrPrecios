@@ -6,6 +6,7 @@ import Pestanas from './src/components/Pestanas';
 import BarraEstado from './src/components/BarraEstado';
 import VentaScreen from './src/screens/VentaScreen';
 import RegistroScreen from './src/screens/RegistroScreen';
+import HistorialScreen from './src/screens/HistorialScreen';
 import { useCuenta } from './src/hooks/useCuenta';
 import { useSincronizacion } from './src/hooks/useSincronizacion';
 import { iniciar } from './src/services/sincronizacion';
@@ -50,11 +51,9 @@ export default function App() {
       <StatusBar style="dark" />
       <Pestanas activa={pestana} onCambiar={cambiarPestana} />
       <BarraEstado />
-      {pestana === 'venta' ? (
-        <VentaScreen cuenta={cuenta} onRegistrarCodigo={registrarCodigo} />
-      ) : (
-        <RegistroScreen codigoInicial={codigoPendiente} />
-      )}
+      {pestana === 'venta' && <VentaScreen cuenta={cuenta} onRegistrarCodigo={registrarCodigo} />}
+      {pestana === 'registro' && <RegistroScreen codigoInicial={codigoPendiente} />}
+      {pestana === 'historial' && <HistorialScreen />}
     </Pantalla>
   );
 }

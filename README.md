@@ -8,7 +8,7 @@ App React Native (Expo) que escanea códigos de barras, arma la cuenta, calcula 
 App.js                      Raíz: pestañas + estado de la cuenta
 src/
   config/      firebase.js (conexión) · theme.js (colores)
-  services/    productosService · ventasService · catalogoLocal (copia en el celular)
+  services/    productosService · ventasService · ventasLocal (historial) · catalogoLocal (copia en el celular)
                colaSincronizacion (pendientes) · sincronizacion (motor offline/online)
   hooks/       useCuenta.js (carrito) · useAviso.js (mensajes no bloqueantes)
   utils/       dinero.js (centavos, formato, parseo) · dialogos.js
@@ -24,6 +24,13 @@ src/
 - Se sincroniza al reconectar, al volver a la app y cada 5 minutos. Una franja de color bajo las pestañas
   muestra el estado (toca para forzar la sincronización).
 - La primera vez hay que abrir la app **con internet** para descargar el catálogo.
+
+## Historial de ventas
+
+La pestaña **Ventas** muestra las ventas del día hechas en este celular: total vendido, número de ventas y
+artículos, y cada venta con su hora y estado de envío (✔ enviada · ⏳ por enviar · ⚠️ error). Toca una venta
+para ver sus productos. Con las flechas ‹ › se consultan días anteriores (se conservan 30 días).
+Funciona sin internet.
 
 ## Ejecutar en VS Code
 

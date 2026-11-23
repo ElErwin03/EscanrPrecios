@@ -5,6 +5,7 @@ import { pesosACentavos } from '../utils/dinero';
 import { conTiempoLimite, esErrorDeRed, mensajeDeError } from '../utils/red';
 import * as catalogo from './catalogoLocal';
 import * as cola from './colaSincronizacion';
+import * as ventasLocal from './ventasLocal';
 
 /**
  * Motor de sincronización:
@@ -137,7 +138,7 @@ export function iniciar() {
 }
 
 async function arrancar() {
-  await Promise.all([catalogo.cargar(), cola.cargar()]);
+  await Promise.all([catalogo.cargar(), cola.cargar(), ventasLocal.cargar()]);
   catalogo.restaurarPendientes(cola.listar()); // por si se cerró la app antes de guardar el catálogo
 
   emitir({ listo: true, pendientes: cola.cantidad(), productosLocales: catalogo.total() });
