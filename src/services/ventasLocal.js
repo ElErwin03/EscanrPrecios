@@ -31,3 +31,14 @@ export async function guardar(id, datos) {
   avisar();
   await guardarJSON(CLAVE_DISCO, ventas);
 }
+
+// Deshace un guardar() cuando algo posterior falló
+export async function quitar(id) {
+  ventas = ventas.filter((v) => v.id !== id);
+  avisar();
+  try {
+    await guardarJSON(CLAVE_DISCO, ventas);
+  } catch {
+    // se corregirá en el siguiente guardado
+  }
+}

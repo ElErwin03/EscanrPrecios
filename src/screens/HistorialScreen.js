@@ -4,53 +4,73 @@ import { colores } from '../config/theme';
 import { useVentasLocales } from '../hooks/useVentasLocales';
 import { useSincronizacion } from '../hooks/useSincronizacion';
 import * as cola from '../services/colaSincronizacion';
-import { pesosACentavos } from '../utils/dinero';
+import { devueltoPorVenta, esDevolucion, estadoDevolucion, resumirDia } from '../utils/devoluciones';
 import { inicioDelDia, sumarDias, esMismoDia } from '../utils/fechas';
 import SelectorDia from '../components/SelectorDia';
 import ResumenDia from '../components/ResumenDia';
 import FilaVenta from '../components/FilaVenta';
+import FilaDevolucion from '../components/FilaDevolucion';
+import DetalleDevolucion from '../components/DetalleDevolucion';
 
 export default function HistorialScreen() {
   const [dia, setDia] = useState(() => inicioDelDia(Date.now()));
-  const ventas = useVentasLocales();
+  const [devolviendoId, setDevolviendoId] = useState(null);
+  const movimientos = useVentasLocales(); // ventas y devoluciones de este celular
   useSincronizacion(); // vuelve a dibujar cuando cambia el estado de envío
   const operaciones = cola.listar();
 
-  // Ventas del día elegido, la más reciente primero
+  // Qué piezas de cada venta ya se devolvieron (de cualquier día)
+  const devueltos = useMemo(() => devueltoPorVenta(movimientos), [movimientos]);
+
+  // Movimientos del día elegido, el más reciente primero
   const delDia = useMemo(() => {
     const fin = sumarDias(dia, 1);
-    return ventas.filter((v) => v.timestamp >= dia && v.timestamp < fin).reverse();
-  }, [ventas, dia]);
+    return movimientos.filter((m) => m.timestamp >= dia && m.timestamp < fin).reverse();
+  }, [movimientos, dia]);
 
-  // ¿Cada venta ya llegó a Firebase? Si sigue en la cola, no.
+  // ¿Ya llegó a Firebase? Si sigue en la cola, no.
   const envios = useMemo(() => {
     const mapa = new Map();
-    for (const op of operaciones) if (op.tipo === 'venta') mapa.set(op.id, op.fallo ? 'error' : 'pendiente');
+    for (const op of operaciones) {
+      if (op.tipo === 'venta' || op.tipo === 'devolucion') mapa.set(op.id, op.fallo ? 'error' : 'pendiente');
+    }
     return mapa;
   }, [operaciones]);
 
   const resumen = useMemo(
-    () => ({
-      totalCentavos: delDia.reduce((s, v) => s + pesosACentavos(v.total), 0),
-      numArticulos: delDia.reduce((s, v) => s + v.articulos.reduce((n, a) => n + a.cantidad, 0), 0),
-      sinEnviar: delDia.filter((v) => envios.has(v.id)).length,
-    }),
+    () => ({ ...resumirDia(delDia), sinEnviar: delDia.filter((m) => envios.has(m.id)).length }),
     [delDia, envios]
   );
 
   const anterior = useCallback(() => setDia((d) => sumarDias(d, -1)), []);
   const siguiente = useCallback(() => setDia((d) => (esMismoDia(d, Date.now()) ? d : sumarDias(d, 1))), []);
+  const abrirDevolucion = useCallback((id) => setDevolviendoId(id), []);
 
   const renderItem = useCallback(
-    ({ item }) => <FilaVenta venta={item} envio={envios.get(item.id) ?? 'enviada'} />,
-    [envios]
+    ({ item }) =>
+      esDevolucion(item) ? (
+        <FilaDevolucion devolucion={item} envio={envios.get(item.id) ?? 'enviada'} />
+      ) : (
+        <FilaVenta
+          venta={item}
+          envio={envios.get(item.id) ?? 'enviada'}
+          estadoDevolucion={estadoDevolucion(item, devueltos)}
+          onDevolver={abrirDevolucion}
+        />
+      ),
+    [envios, devueltos, abrirDevolucion]
   );
+
+  const ventaADevolver = devolviendoId ? movimientos.find((m) => m.id === devolviendoId && !esDevolucion(m)) : null;
+  if (ventaADevolver) {
+    return <DetalleDevolucion venta={ventaADevolver} devueltos={devueltos} onVolver={() => setDevolviendoId(null)} />;
+  }
 
   return (
     <View style={estilos.contenedor}>
       <FlatList
         data={delDia}
-        keyExtractor={(v) => v.id}
+        keyExtractor={(m) => m.id}
         renderItem={renderItem}
         contentContainerStyle={estilos.contenido}
         initialNumToRender={12}
@@ -58,13 +78,15 @@ export default function HistorialScreen() {
         ListHeaderComponent={
           <>
             <SelectorDia dia={dia} onAnterior={anterior} onSiguiente={siguiente} />
-            <ResumenDia numVentas={delDia.length} {...resumen} />
-            {delDia.length > 0 && <Text style={estilos.subtitulo}>Ventas (la más reciente primero)</Text>}
+            <ResumenDia {...resumen} />
+            {delDia.length > 0 && <Text style={estilos.subtitulo}>Movimientos (el más reciente primero)</Text>}
           </>
         }
         ListEmptyComponent={<Text style={estilos.vacio}>No hay ventas registradas este día</Text>}
         ListFooterComponent={
-          <Text style={estilos.nota}>Aquí aparecen las ventas hechas en este celular (últimos 30 días).</Text>
+          <Text style={estilos.nota}>
+            Aquí aparecen las ventas y devoluciones hechas en este celular (últimos 30 días). Una devolución cuenta en el día en que se hace.
+          </Text>
         }
       />
     </View>

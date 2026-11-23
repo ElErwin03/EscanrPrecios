@@ -3,6 +3,8 @@ import * as cola from './colaSincronizacion';
 import * as ventasLocal from './ventasLocal';
 import { sincronizar } from './sincronizacion';
 import { estadoStock } from '../utils/inventario';
+import { pesosACentavos } from '../utils/dinero';
+import { articulosDevolvibles, devueltoPorVenta } from '../utils/devoluciones';
 
 /**
  * Registra una venta terminada. Se guarda en el celular al instante y se envía a
@@ -49,4 +51,62 @@ export async function registrarVenta({ items, totalCentavos, recibidoCentavos, c
   }
   sincronizar();
   return { bajos };
+}
+
+/**
+ * Registra la devolución (total o parcial) de una venta ya cobrada.
+ *  - cantidades: { codigo: piezas a devolver }
+ *  - reponer: si las piezas regresan al inventario (false si el producto está dañado)
+ * La venta original no se modifica: se guarda un registro nuevo en devoluciones/<id>.
+ * Devuelve { totalCentavos, piezasRepuestas }. Lanza error si no se pudo guardar.
+ */
+export async function registrarDevolucion({ venta, cantidades, reponer }) {
+  const devueltos = devueltoPorVenta(ventasLocal.listar());
+
+  const lineas = [];
+  for (const a of articulosDevolvibles(venta, devueltos)) {
+    const n = cantidades[a.codigo] ?? 0;
+    if (n <= 0) continue;
+    if (n > a.disponible) throw new Error('No se puede devolver más de lo vendido');
+    lineas.push({ codigo: a.codigo, nombre: a.nombre, precio: a.precio, cantidad: n });
+  }
+  if (lineas.length === 0) throw new Error('No hay artículos para devolver');
+
+  const totalCentavos = lineas.reduce((s, l) => s + pesosACentavos(l.precio) * l.cantidad, 0);
+
+  // Existencias nuevas (solo productos con control de inventario)
+  const stockNuevo = {};
+  let piezasRepuestas = 0;
+  if (reponer) {
+    for (const l of lineas) {
+      const producto = catalogo.buscar(l.codigo);
+      if (!producto || producto.stock == null) continue;
+      stockNuevo[producto.codigo] = producto.stock + l.cantidad;
+      piezasRepuestas += l.cantidad;
+    }
+  }
+
+  const ahora = new Date();
+  const id = cola.nuevoId();
+  const datos = {
+    tipo: 'devolucion',
+    ventaId: venta.id,
+    fecha: ahora.toISOString(),
+    timestamp: ahora.getTime(),
+    total: totalCentavos / 100,
+    repuesto: reponer,
+    articulos: lineas,
+  };
+
+  // El historial local es lo que impide devolver dos veces lo mismo: va primero
+  await ventasLocal.guardar(id, datos);
+  try {
+    await cola.encolar('devolucion', datos, { id, stock: stockNuevo });
+  } catch (error) {
+    await ventasLocal.quitar(id);
+    throw error;
+  }
+  catalogo.aplicarStock(stockNuevo);
+  sincronizar();
+  return { totalCentavos, piezasRepuestas };
 }
