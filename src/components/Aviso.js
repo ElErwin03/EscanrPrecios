@@ -5,9 +5,9 @@ import { colores } from '../config/theme';
 // Banner flotante no bloqueante. Se coloca dentro de un contenedor con position relative.
 export default function Aviso({ aviso }) {
   if (!aviso) return null;
-  const esError = aviso.tipo === 'error';
+  const fondo = aviso.tipo === 'error' ? colores.peligro : aviso.tipo === 'alerta' ? colores.advertencia : colores.exitoOscuro;
   return (
-    <View pointerEvents="none" style={[estilos.caja, { backgroundColor: esError ? colores.peligro : colores.exitoOscuro }]}>
+    <View pointerEvents="none" style={[estilos.caja, { backgroundColor: fondo }]}>
       <Text style={estilos.texto} numberOfLines={2}>
         {aviso.texto}
       </Text>

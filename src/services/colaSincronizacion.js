@@ -25,8 +25,8 @@ export const listar = () => operaciones;
 export const cantidad = () => operaciones.length;
 
 /** Agrega una operación y la guarda en disco. Si no se puede guardar, lanza error. */
-export async function encolar(tipo, datos) {
-  const operacion = { id: nuevoId(), tipo, datos, creado: Date.now() };
+export async function encolar(tipo, datos, extra = {}) {
+  const operacion = { id: nuevoId(), tipo, datos, ...extra, creado: Date.now() };
   operaciones = [...operaciones, operacion];
   avisar();
   try {

@@ -4,7 +4,8 @@ import { colores } from '../config/theme';
 
 const PESTANAS = [
   { id: 'venta', titulo: 'Escanear' },
-  { id: 'registro', titulo: 'Nuevo Producto' },
+  { id: 'registro', titulo: 'Registrar' },
+  { id: 'inventario', titulo: 'Inventario' },
   { id: 'historial', titulo: 'Ventas' },
 ];
 
@@ -19,7 +20,7 @@ export default function Pestanas({ activa, onCambiar }) {
             style={[estilos.boton, esActiva && estilos.botonActivo]}
             onPress={() => onCambiar(p.id)}
           >
-            <Text style={[estilos.texto, esActiva && estilos.textoActivo]}>{p.titulo}</Text>
+            <Text numberOfLines={1} style={[estilos.texto, esActiva && estilos.textoActivo]}>{p.titulo}</Text>
           </TouchableOpacity>
         );
       })}
@@ -31,6 +32,6 @@ const estilos = StyleSheet.create({
   contenedor: { flexDirection: 'row', backgroundColor: colores.blanco, elevation: 2 },
   boton: { flex: 1, paddingVertical: 15, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
   botonActivo: { borderBottomColor: colores.primario },
-  texto: { fontSize: 14, fontWeight: '600', color: colores.textoSuave },
+  texto: { fontSize: 13, fontWeight: '600', color: colores.textoSuave },
   textoActivo: { color: colores.primario },
 });
