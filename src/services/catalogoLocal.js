@@ -113,7 +113,7 @@ function aplicarPendientes(operaciones) {
       const clave = claveProducto(op.datos.codigo);
       const actual = productos.get(clave);
       if (actual) productos.set(clave, { ...actual, ...cambiosInventario(op.datos) });
-    } else if (op.tipo === 'venta' && op.stock) {
+    } else if ((op.tipo === 'venta' || op.tipo === 'devolucion') && op.stock) {
       for (const [codigo, stock] of Object.entries(op.stock)) {
         const actual = productos.get(claveProducto(codigo));
         if (actual) productos.set(claveProducto(codigo), { ...actual, stock });

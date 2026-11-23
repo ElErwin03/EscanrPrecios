@@ -10,8 +10,10 @@ const ESTADOS = {
   error: { texto: '⚠️ Error al enviar', color: colores.peligro },
 };
 
-// Toca la fila para ver los productos de la venta
-function FilaVenta({ venta, envio }) {
+const ETIQUETA_DEVOLUCION = { parcial: '↩ Devolución parcial', total: '↩ Devuelta' };
+
+// Toca la fila para ver los productos de la venta (y devolverlos)
+function FilaVenta({ venta, envio, estadoDevolucion = 'ninguna', onDevolver }) {
   const [abierta, setAbierta] = useState(false);
   const estado = ESTADOS[envio];
   const numArticulos = venta.articulos.reduce((s, a) => s + a.cantidad, 0);
@@ -24,8 +26,11 @@ function FilaVenta({ venta, envio }) {
           <Text style={estilos.detalle}>
             {numArticulos} {numArticulos === 1 ? 'artículo' : 'artículos'} · <Text style={{ color: estado.color }}>{estado.texto}</Text>
           </Text>
+          {estadoDevolucion !== 'ninguna' && <Text style={estilos.etiquetaDevolucion}>{ETIQUETA_DEVOLUCION[estadoDevolucion]}</Text>}
         </View>
-        <Text style={estilos.total}>{formatearMonto(pesosACentavos(venta.total))}</Text>
+        <Text style={[estilos.total, estadoDevolucion === 'total' && estilos.totalTachado]}>
+          {formatearMonto(pesosACentavos(venta.total))}
+        </Text>
       </View>
 
       {abierta && (
@@ -42,6 +47,11 @@ function FilaVenta({ venta, envio }) {
             <Text style={estilos.pagoTexto}>Recibido {formatearMonto(pesosACentavos(venta.recibido))}</Text>
             <Text style={estilos.pagoTexto}>Cambio {formatearMonto(pesosACentavos(venta.cambio))}</Text>
           </View>
+          {estadoDevolucion !== 'total' && (
+            <TouchableOpacity style={estilos.btnDevolver} onPress={() => onDevolver(venta.id)}>
+              <Text style={estilos.btnDevolverTexto}>↩ Devolver artículos</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </TouchableOpacity>
@@ -56,11 +66,15 @@ const estilos = StyleSheet.create({
   izquierda: { flex: 1, marginRight: 8 },
   hora: { fontSize: 16, fontWeight: 'bold', color: colores.texto },
   detalle: { fontSize: 12, color: colores.textoSuave, marginTop: 2 },
+  etiquetaDevolucion: { fontSize: 12, fontWeight: 'bold', color: colores.peligro, marginTop: 2 },
   total: { fontSize: 18, fontWeight: 'bold', color: '#2e7d32' },
+  totalTachado: { color: colores.textoClaro, textDecorationLine: 'line-through' },
   cuerpo: { marginTop: 10, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#eee' },
   linea: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   lineaNombre: { flex: 1, fontSize: 14, color: colores.texto, marginRight: 8 },
   lineaMonto: { fontSize: 14, color: colores.texto },
   pago: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   pagoTexto: { fontSize: 12, color: colores.textoClaro },
+  btnDevolver: { marginTop: 10, paddingVertical: 9, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: colores.peligro },
+  btnDevolverTexto: { color: colores.peligro, fontWeight: 'bold', fontSize: 14 },
 });

@@ -53,9 +53,10 @@ async function enviar(op) {
     await conTiempoLimite(
       update(ref(db, `productos/${catalogo.claveProducto(op.datos.codigo)}`), cambiosInventario(op.datos))
     );
-  } else if (op.tipo === 'venta') {
-    // El id de la operación es la clave: reenviar la misma venta nunca la duplica
-    await conTiempoLimite(set(ref(db, `ventas/${op.id}`), op.datos));
+  } else if (op.tipo === 'venta' || op.tipo === 'devolucion') {
+    // El id de la operación es la clave: reenviarla nunca la duplica
+    const nodo = op.tipo === 'venta' ? 'ventas' : 'devoluciones';
+    await conTiempoLimite(set(ref(db, `${nodo}/${op.id}`), op.datos));
     if (op.stock && Object.keys(op.stock).length > 0) {
       const cambios = {};
       for (const [codigo, stock] of Object.entries(op.stock)) cambios[`${codigo}/stock`] = stock;

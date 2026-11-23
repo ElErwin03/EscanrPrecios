@@ -38,6 +38,16 @@ src/
 - Se guarda la existencia final (no "+5"), así que los reintentos de envío nunca descuentan dos veces.
   Limitación: si dos celulares venden el mismo producto a la vez, gana el último en sincronizar.
 
+## Devoluciones
+
+En la pestaña **Ventas**, toca una venta y elige **↩ Devolver artículos**. Puedes devolver todo o solo algunas piezas
+(con − y +), y decidir si las piezas **regresan al inventario** (desactívalo si el producto está dañado).
+- La venta original **no se modifica**: se crea un registro de devolución que apunta a ella (`devoluciones/<id>` en Firebase).
+- Se reembolsa el precio al que se vendió, no el precio actual.
+- No se puede devolver más de lo vendido ni la misma pieza dos veces.
+- En el historial, la devolución cuenta en el día en que se hace, y el resumen muestra la **venta neta** (ventas − devoluciones).
+- Funciona sin internet y se sincroniza igual que las ventas. Solo se pueden devolver ventas de los últimos 30 días.
+
 ## Historial de ventas
 
 La pestaña **Ventas** muestra las ventas del día hechas en este celular: total vendido, número de ventas y
@@ -66,5 +76,6 @@ npm run build:apk  # genera un .apk instalable (te pedirá el id del paquete, ej
 
 ```
 productos/<codigo_de_barras>: { nombre: "Agua", precio: 10.5, stock: 24, stockMinimo: 5 }   (stock y stockMinimo son opcionales)
+devoluciones/<id>: { tipo, ventaId, fecha, timestamp, total, repuesto, articulos: [...] }
 ventas/<id>: { fecha, timestamp, total, recibido, cambio, articulos: [{ codigo, nombre, precio, cantidad }] }
 ```
