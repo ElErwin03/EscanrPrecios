@@ -1,7 +1,7 @@
 import { AppState } from 'react-native';
-import { ref, get, set, onValue } from 'firebase/database';
+import { ref, get, set, update, onValue } from 'firebase/database';
 import { db } from '../config/firebase';
-import { pesosACentavos } from '../utils/dinero';
+import { cambiosInventario } from '../utils/inventario';
 import { conTiempoLimite, esErrorDeRed, mensajeDeError } from '../utils/red';
 import * as catalogo from './catalogoLocal';
 import * as cola from './colaSincronizacion';
@@ -43,13 +43,24 @@ export const obtenerEstado = () => estado;
 
 async function enviar(op) {
   if (op.tipo === 'producto') {
+    // update (no set): cambia nombre y precio sin borrar la existencia del producto
     const { codigo, nombre, precioCentavos } = op.datos;
     await conTiempoLimite(
-      set(ref(db, `productos/${catalogo.claveProducto(codigo)}`), { nombre, precio: precioCentavos / 100 })
+      update(ref(db, `productos/${catalogo.claveProducto(codigo)}`), { nombre, precio: precioCentavos / 100 })
+    );
+  } else if (op.tipo === 'inventario') {
+    // Valores absolutos: reenviar la misma operación nunca descuenta ni suma dos veces
+    await conTiempoLimite(
+      update(ref(db, `productos/${catalogo.claveProducto(op.datos.codigo)}`), cambiosInventario(op.datos))
     );
   } else if (op.tipo === 'venta') {
     // El id de la operación es la clave: reenviar la misma venta nunca la duplica
     await conTiempoLimite(set(ref(db, `ventas/${op.id}`), op.datos));
+    if (op.stock && Object.keys(op.stock).length > 0) {
+      const cambios = {};
+      for (const [codigo, stock] of Object.entries(op.stock)) cambios[`${codigo}/stock`] = stock;
+      await conTiempoLimite(update(ref(db, 'productos'), cambios));
+    }
   } else {
     throw new Error(`Operación desconocida: ${op.tipo}`);
   }
@@ -81,9 +92,8 @@ async function descargarCatalogo() {
   const nuevos = new Map();
   if (snapshot.exists()) {
     for (const [clave, datos] of Object.entries(snapshot.val())) {
-      const precioCentavos = pesosACentavos(datos?.precio);
-      if (!datos?.nombre || Number.isNaN(precioCentavos)) continue; // dato incompleto: se ignora
-      nuevos.set(clave, { codigo: clave, nombre: datos.nombre, precioCentavos });
+      const producto = catalogo.desdeFirebase(clave, datos);
+      if (producto) nuevos.set(clave, producto); // los datos incompletos se ignoran
     }
   }
   await catalogo.reemplazarDesdeServidor(nuevos, cola.listar());

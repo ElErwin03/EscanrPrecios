@@ -1,6 +1,5 @@
 import { ref, get } from 'firebase/database';
 import { db } from '../config/firebase';
-import { pesosACentavos } from '../utils/dinero';
 import { ErrorRed, conTiempoLimite, mensajeDeError } from '../utils/red';
 import * as catalogo from './catalogoLocal';
 import * as cola from './colaSincronizacion';
@@ -21,12 +20,10 @@ export async function obtenerProducto(codigo, { soloLocal = false } = {}) {
   const snapshot = await conTiempoLimite(get(ref(db, `productos/${clave}`)), 5000);
   if (!snapshot.exists()) return null;
 
-  const datos = snapshot.val();
-  const precioCentavos = pesosACentavos(datos.precio);
-  if (!datos.nombre || Number.isNaN(precioCentavos)) {
+  const producto = catalogo.desdeFirebase(clave, snapshot.val());
+  if (!producto) {
     throw new ErrorRed('datos', `El producto ${codigo} tiene datos incompletos en la base de datos.`);
   }
-  const producto = { codigo: clave, nombre: datos.nombre, precioCentavos };
   catalogo.guardar(producto);
   return producto;
 }
@@ -35,6 +32,6 @@ export async function obtenerProducto(codigo, { soloLocal = false } = {}) {
 export async function guardarProducto({ codigo, nombre, precioCentavos }) {
   const producto = { codigo: catalogo.claveProducto(codigo), nombre, precioCentavos };
   await cola.encolar('producto', producto); // primero a la cola (disco): es lo que no se puede perder
-  catalogo.guardar(producto);
+  catalogo.guardar(producto); // conserva la existencia si el producto ya la tenía
   sincronizar();
 }

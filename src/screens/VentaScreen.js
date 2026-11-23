@@ -26,7 +26,14 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
         if (producto) {
           agregar(producto);
           Vibration.vibrate(40);
-          mostrar(`${producto.nombre}  ${formatearMonto(producto.precioCentavos)}`);
+          // Se vende igual (el conteo puede estar desactualizado), pero se avisa
+          const sinExistencias = producto.stock != null && producto.stock <= 0;
+          mostrar(
+            sinExistencias
+              ? `${producto.nombre} · ⚠️ sin existencias registradas`
+              : `${producto.nombre}  ${formatearMonto(producto.precioCentavos)}`,
+            sinExistencias ? 'alerta' : 'ok'
+          );
         } else {
           Vibration.vibrate([0, 80, 60, 80]);
           const registrar = await confirmar(
@@ -58,9 +65,10 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
       return;
     }
     setCobrando(true);
+    let bajos = [];
     try {
       // Se guarda en el celular al instante; se envía a Firebase cuando hay internet
-      await registrarVenta({ items, totalCentavos, recibidoCentavos: efectivoCentavos, cambioCentavos });
+      ({ bajos } = await registrarVenta({ items, totalCentavos, recibidoCentavos: efectivoCentavos, cambioCentavos }));
     } catch {
       setCobrando(false);
       Alert.alert('Error', 'No se pudo guardar la venta en el celular. Intenta de nuevo.');
@@ -70,7 +78,11 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
       `Total cobrado: ${formatearMonto(totalCentavos)}\n` +
       `Efectivo recibido: ${formatearMonto(efectivoCentavos)}\n` +
       `Cambio devuelto: ${formatearMonto(cambioCentavos)}` +
-      (obtenerEstado().enLinea ? '' : '\n\n📴 Guardada en el celular; se enviará al volver el internet.');
+      (obtenerEstado().enLinea ? '' : '\n\n📴 Guardada en el celular; se enviará al volver el internet.') +
+      (bajos.length > 0
+        ? '\n\n⚠️ Reabastecer pronto:\n' +
+          bajos.map((b) => (b.estado === 'agotado' ? `• ${b.nombre}: AGOTADO` : `• ${b.nombre}: quedan ${b.stock}`)).join('\n')
+        : '');
     limpiar();
     setPagaCon('');
     setCobrando(false);
@@ -78,7 +90,11 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
   };
 
   const cancelarCuenta = async () => {
-    const si = await confirmar('Cancelar cuenta', '¿Quieres borrar todos los productos de esta cuenta?', { si: 'Borrar' });
+    const si = await confirmar(
+      'Cancelar venta',
+      `Se borrarán los ${totalArticulos} artículos de esta cuenta. No se cobra nada ni se descuenta del inventario.`,
+      { si: 'Sí, cancelar', no: 'Seguir vendiendo' }
+    );
     if (si) {
       limpiar();
       setPagaCon('');
@@ -101,8 +117,8 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
       <View style={estilos.encabezadoLista}>
         <Text style={estilos.listaTitulo}>Productos en esta cuenta ({totalArticulos})</Text>
         {items.length > 0 && (
-          <TouchableOpacity onPress={cancelarCuenta} hitSlop={8}>
-            <Text style={estilos.btnLimpiar}>Limpiar</Text>
+          <TouchableOpacity onPress={cancelarCuenta} hitSlop={8} style={estilos.btnCancelar}>
+            <Text style={estilos.btnCancelarTexto}>✕ Cancelar venta</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -136,7 +152,8 @@ const estilos = StyleSheet.create({
   camara: { paddingHorizontal: 12, paddingTop: 12 },
   encabezadoLista: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, marginTop: 12, marginBottom: 6 },
   listaTitulo: { fontSize: 14, fontWeight: 'bold', color: '#444' },
-  btnLimpiar: { fontSize: 14, fontWeight: 'bold', color: colores.peligro },
+  btnCancelar: { borderWidth: 1, borderColor: colores.peligro, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  btnCancelarTexto: { fontSize: 12, fontWeight: 'bold', color: colores.peligro },
   lista: { flex: 1, paddingHorizontal: 12 },
   vacio: { textAlign: 'center', color: colores.textoClaro, marginTop: 20, fontSize: 14, fontStyle: 'italic' },
 });
