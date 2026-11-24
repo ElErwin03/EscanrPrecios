@@ -55,6 +55,11 @@ artículos, y cada venta con su hora y estado de envío (✔ enviada · ⏳ por 
 para ver sus productos. Con las flechas ‹ › se consultan días anteriores (se conservan 30 días).
 Funciona sin internet.
 
+## Requisitos
+
+- **Node.js 22.13 o superior** (`node -v` para verlo) — lo exige Expo SDK 58 / React Native 0.88.
+- Expo SDK 58 (React 19). Si usas Expo Go, debe ser la versión más reciente de la tienda.
+
 ## Ejecutar en VS Code
 
 ```bash

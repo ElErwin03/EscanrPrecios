@@ -107,7 +107,7 @@ export default function VentaScreen({ cuenta, onRegistrarCodigo }) {
   );
 
   return (
-    <KeyboardAvoidingView style={estilos.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={estilos.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={estilos.camara}>
         <EscanerCodigo onCodigo={manejarCodigo} altura={150}>
           <Aviso aviso={aviso} />

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Pantalla from './src/components/Pantalla';
 import Pestanas from './src/components/Pestanas';
 import BarraEstado from './src/components/BarraEstado';
@@ -48,24 +49,28 @@ export default function App() {
 
   if (!listo) {
     return (
-      <Pantalla>
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <ActivityIndicator size="large" color={colores.primario} />
-        </View>
-      </Pantalla>
+      <SafeAreaProvider>
+        <Pantalla>
+          <View style={{ flex: 1, justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color={colores.primario} />
+          </View>
+        </Pantalla>
+      </SafeAreaProvider>
     );
   }
 
   return (
-    <Pantalla>
-      <StatusBar style="dark" />
-      <Pestanas activa={pestana} onCambiar={cambiarPestana} />
-      <BarraEstado />
-      {pestana !== 'inventario' && <AvisoInventario onPress={verInventarioBajo} />}
-      {pestana === 'venta' && <VentaScreen cuenta={cuenta} onRegistrarCodigo={registrarCodigo} />}
-      {pestana === 'registro' && <RegistroScreen codigoInicial={codigoPendiente} />}
-      {pestana === 'inventario' && <InventarioScreen filtroInicial={filtroInventario} />}
-      {pestana === 'historial' && <HistorialScreen />}
-    </Pantalla>
+    <SafeAreaProvider>
+      <Pantalla>
+        <StatusBar style="dark" />
+        <Pestanas activa={pestana} onCambiar={cambiarPestana} />
+        <BarraEstado />
+        {pestana !== 'inventario' && <AvisoInventario onPress={verInventarioBajo} />}
+        {pestana === 'venta' && <VentaScreen cuenta={cuenta} onRegistrarCodigo={registrarCodigo} />}
+        {pestana === 'registro' && <RegistroScreen codigoInicial={codigoPendiente} />}
+        {pestana === 'inventario' && <InventarioScreen filtroInicial={filtroInventario} />}
+        {pestana === 'historial' && <HistorialScreen />}
+      </Pantalla>
+    </SafeAreaProvider>
   );
 }

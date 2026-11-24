@@ -64,7 +64,7 @@ export default function DetalleInventario({ producto, onVolver }) {
   };
 
   return (
-    <KeyboardAvoidingView style={estilos.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={estilos.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
         <TouchableOpacity onPress={onVolver} hitSlop={8} style={estilos.volver}>
           <Text style={estilos.volverTexto}>‹ Volver al inventario</Text>
