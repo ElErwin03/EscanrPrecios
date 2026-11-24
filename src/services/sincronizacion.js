@@ -48,6 +48,11 @@ async function enviar(op) {
     await conTiempoLimite(
       update(ref(db, `productos/${catalogo.claveProducto(codigo)}`), { nombre, precio: precioCentavos / 100 })
     );
+  } else if (op.tipo === 'precio') {
+    // Solo el precio: no pisa el nombre ni las existencias que otro celular haya cambiado
+    await conTiempoLimite(
+      update(ref(db, `productos/${catalogo.claveProducto(op.datos.codigo)}`), { precio: op.datos.precioCentavos / 100 })
+    );
   } else if (op.tipo === 'inventario') {
     // Valores absolutos: reenviar la misma operación nunca descuenta ni suma dos veces
     await conTiempoLimite(

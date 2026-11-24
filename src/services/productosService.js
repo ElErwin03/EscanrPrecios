@@ -28,6 +28,15 @@ export async function obtenerProducto(codigo, { soloLocal = false } = {}) {
   return producto;
 }
 
+/** Cambia solo el precio de un producto (no toca nombre ni existencias). Las ventas anteriores no cambian. */
+export async function cambiarPrecio(codigo, precioCentavos) {
+  const clave = catalogo.claveProducto(codigo);
+  if (!catalogo.buscar(clave)) throw new Error('Producto no encontrado');
+  await cola.encolar('precio', { codigo: clave, precioCentavos }); // primero a disco
+  catalogo.guardar({ codigo: clave, precioCentavos });
+  sincronizar();
+}
+
 /** Guarda en el celular al instante y lo envía a Firebase en cuanto haya internet. */
 export async function guardarProducto({ codigo, nombre, precioCentavos }) {
   const producto = { codigo: catalogo.claveProducto(codigo), nombre, precioCentavos };
