@@ -3,7 +3,9 @@ import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, Te
 import { colores, radio } from '../config/theme';
 import { useAviso } from '../hooks/useAviso';
 import { agregarExistencia, fijarExistencia, fijarMinimo } from '../services/inventarioService';
-import { formatearMonto } from '../utils/dinero';
+import { cambiarPrecio } from '../services/productosService';
+import { confirmar } from '../utils/dialogos';
+import { formatearMonto, parsearMonto } from '../utils/dinero';
 import { MINIMO_POR_DEFECTO, minimoEfectivo, parsearCantidad } from '../utils/inventario';
 import Aviso from './Aviso';
 import InsigniaStock, { colorDeStock } from './InsigniaStock';
@@ -12,10 +14,14 @@ export default function DetalleInventario({ producto, onVolver }) {
   const [llego, setLlego] = useState('');
   const [conteo, setConteo] = useState('');
   const [minimo, setMinimo] = useState('');
+  const [precio, setPrecio] = useState('');
   const { aviso, mostrar } = useAviso(2500);
 
   const tieneControl = producto.stock != null;
   const llegoNum = parsearCantidad(llego);
+  const nuevoPrecio = parsearMonto(precio);
+  const diferencia = nuevoPrecio ? nuevoPrecio - producto.precioCentavos : 0;
+  const porcentaje = Math.round((diferencia / producto.precioCentavos) * 100);
 
   const ejecutar = async (accion, mensajeOk) => {
     try {
@@ -24,6 +30,30 @@ export default function DetalleInventario({ producto, onVolver }) {
     } catch {
       Alert.alert('Error', 'No se pudo guardar el cambio en el celular. Intenta de nuevo.');
     }
+  };
+
+  const guardarPrecio = async () => {
+    if (nuevoPrecio === null || nuevoPrecio <= 0) {
+      Alert.alert('Precio inválido', 'Escribe un precio mayor a 0, por ejemplo 20 o 20.50');
+      return;
+    }
+    if (nuevoPrecio === producto.precioCentavos) {
+      Alert.alert('Sin cambios', 'El producto ya tiene ese precio.');
+      return;
+    }
+    // Protege contra errores de dedo (18 -> 180): pide confirmar los cambios grandes
+    if (Math.abs(porcentaje) > 50) {
+      const ok = await confirmar(
+        '¿El precio es correcto?',
+        `Cambiará de ${formatearMonto(producto.precioCentavos)} a ${formatearMonto(nuevoPrecio)} (${porcentaje > 0 ? '+' : ''}${porcentaje}%).`,
+        { si: 'Sí, guardar', no: 'Corregir' }
+      );
+      if (!ok) return;
+    }
+    ejecutar(async () => {
+      await cambiarPrecio(producto.codigo, nuevoPrecio);
+      setPrecio('');
+    }, `Precio actualizado: ${formatearMonto(nuevoPrecio)}`);
   };
 
   const agregar = () => {
@@ -83,6 +113,22 @@ export default function DetalleInventario({ producto, onVolver }) {
           {!tieneControl && (
             <Text style={estilos.ayuda}>Al agregar existencias empezarás a controlar este producto: se descontará en cada venta.</Text>
           )}
+        </View>
+
+        <View style={estilos.tarjeta}>
+          <Text style={estilos.seccion}>💲 Cambiar precio</Text>
+          <Text style={estilos.ayuda}>
+            Precio actual: {formatearMonto(producto.precioCentavos)}. Las ventas ya hechas conservan el precio al que se vendieron.
+          </Text>
+          <TextInput style={estilos.input} value={precio} onChangeText={setPrecio} placeholder="Nuevo precio. Ej. 20.50" keyboardType="decimal-pad" />
+          {nuevoPrecio > 0 && diferencia !== 0 && (
+            <Text style={[estilos.vista, diferencia > 0 && { color: colores.advertencia }]}>
+              {diferencia > 0 ? '▲ Sube' : '▼ Baja'} {formatearMonto(Math.abs(diferencia))} ({diferencia > 0 ? '+' : ''}{porcentaje}%)
+            </Text>
+          )}
+          <TouchableOpacity style={[estilos.boton, { backgroundColor: colores.primario }]} onPress={guardarPrecio}>
+            <Text style={estilos.botonTexto}>Guardar precio</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={estilos.tarjeta}>

@@ -38,6 +38,19 @@ src/
 - Se guarda la existencia final (no "+5"), así que los reintentos de envío nunca descuentan dos veces.
   Limitación: si dos celulares venden el mismo producto a la vez, gana el último en sincronizar.
 
+## Cambiar el precio de un producto
+
+Pestaña **Inventario** → toca el producto → **💲 Cambiar precio**. Muestra cuánto sube o baja (en $ y %) y pide confirmación
+si el cambio es de más del 50 % (para evitar errores de dedo). Solo cambia el precio: el nombre y las existencias no se tocan.
+- Las ventas ya hechas conservan el precio al que se vendieron, y una devolución reembolsa ese mismo precio.
+- Funciona sin internet y se envía a Firebase al volver la conexión.
+
+## Icono de la app
+
+Los archivos están en `assets/` (`icon.png`, `android-icon-foreground.png`, `android-icon-monochrome.png`, `favicon.png`)
+y se configuran en `app.json`. Para usar otro diseño, reemplaza esos archivos (PNG de 1024×1024; el primer plano de Android con
+fondo transparente y el dibujo dentro del centro) y vuelve a generar el APK.
+
 ## Devoluciones
 
 En la pestaña **Ventas**, toca una venta y elige **↩ Devolver artículos**. Puedes devolver todo o solo algunas piezas
