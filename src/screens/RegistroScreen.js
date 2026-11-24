@@ -73,7 +73,7 @@ export default function RegistroScreen({ codigoInicial = '' }) {
   };
 
   return (
-    <KeyboardAvoidingView style={estilos.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={estilos.contenedor} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={estilos.contenido} keyboardShouldPersistTaps="handled">
         <Text style={estilos.paso}>Paso 1: Enfoca el código</Text>
         <EscanerCodigo onCodigo={alEscanear} altura={130}>
